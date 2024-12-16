@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>空氣品質監測</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* 設定整體頁面的字型和背景 */
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f0f9f7;
+            /* 淺綠色背景 */
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+
+        
+
+        /* 設定容器的最大寬度和中心對齊 */
+        .container {
+            width: 85%;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 30px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 頁面標題樣式 */
+        h1 {
+            text-align: center;
+            color: #4CAF50;
+            /* 綠色標題 */
+            font-size: 40px;
+            margin-bottom: 25px;
+        }
+
+        /* 搜尋區域的樣式 */
+        .search-area {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .search-area input {
+            padding: 12px;
+            font-size: 16px;
+            width: 250px;
+            border: 1px solid #d1e7e3;
+            /* 淺綠色邊框 */
+            border-radius: 50px;
+        }
+
+        .search-area button {
+            padding: 12px 30px;
+            font-size: 16px;
+            color: #fff;
+            background-color: #50a72e;
+            /* 新綠色按鈕 */
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+        }
+
+        .search-area button:hover {
+            background-color: #45a049;
+        }
+
+        /* 表格樣式 */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        table th,
+        table td {
+            padding: 14px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+
+         /* 表格標題樣式 */
+         table th {
+            background-color: #007bff;
+            /* 修改為藍色 */
+            color: white;
+            font-size: 18px;
+        }
+
+
+        /* 表格內容樣式 */
+        table td {
+            font-size: 16px;
+            color: #555;
+        }
+
+        /* 表格的行間距與hover效果 */
+        table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        table tr:hover {
+            background-color: #e9f7e9;
+        }
+
+        /* 提示文字樣式 */
+        .no-data-message {
+            text-align: center;
+            font-size: 18px;
+            color: #888;
+            padding: 20px;
+        }
+
+        /* 排序箭頭顯示 */
+        th.sorted {
+            cursor: pointer;
+            background-color: #f4f4f9;
+        }
+
+        th.sorted.asc::after {
+            content: " ▲";
+        }
+
+        th.sorted.desc::after {
+            content: " ▼";
+        }
+
+        /* 增加排序欄位的高亮 */
+        th.sorted {
+            background-color: #50a72e;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 改善的導覽列 -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow">
+        <div class="container-fluid">
+            <a class="navbar-brand fw-bold" href="#">API 範例</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link text-white" aria-current="page" href="index.html">股票資訊</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="index2.html">空氣品質監測</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="index3.html">天氣預報</a>
+                    </li>
+                </ul>
+
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <h1 class="text-center mb-4">空氣品質監測</h1>
+
+        <!-- 搜尋區域 -->
+        <div class="input-group mb-3 shadow-sm">
+            <input type="text" id="cityInput" class="form-control rounded-pill" placeholder="輸入縣市名稱">
+            <button id="searchButton" class="btn btn-primary rounded-pill ms-2">搜尋</button>
+        </div>
+
+        <!-- 資料顯示區 -->
+        <div id="airQualityData" class="mt-3"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const apiKey = 'c006546c-d960-4e9b-a538-315df2f1053a';
+            const apiUrl = `https://data.moenv.gov.tw/api/v2/aqx_p_434?api_key=${apiKey}&format=json`;
+
+            const cityInput = document.getElementById('cityInput');
+            const searchButton = document.getElementById('searchButton');
+            const airQualityDataDiv = document.getElementById('airQualityData');
+            let airQualityData = [];
+            let currentSort = { column: '', direction: 'asc' };
+
+            // 初次載入資料
+            fetchData();
+
+            // 即時搜尋（監聽輸入框的變化）
+            cityInput.addEventListener('input', () => {
+                filterAndDisplayData(cityInput.value.trim());
+            });
+
+            // 搜尋按鈕點擊事件
+            searchButton.addEventListener('click', () => {
+                const cityName = cityInput.value.trim();
+                if (cityName) {
+                    filterAndDisplayData(cityName);
+                } else {
+                    alert('請輸入縣市名稱');
+                }
+            });
+
+            // 從 API 獲取資料
+            function fetchData() {
+                fetch(apiUrl)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data && data.records) {
+                            airQualityData = data.records;
+                            displayData(airQualityData); // 初始顯示全部資料
+                        } else {
+                            airQualityDataDiv.innerHTML = '無法獲取資料';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('API 請求失敗', error);
+                        airQualityDataDiv.innerHTML = '資料載入失敗，請稍後重試';
+                    });
+            }
+
+            // 篩選並顯示資料
+            function filterAndDisplayData(cityName) {
+                const filteredData = airQualityData.filter(record =>
+                    record.sitename.includes(cityName)
+                );
+                displayData(filteredData);
+
+                // 如果沒有符合條件的資料，顯示提示訊息
+                if (filteredData.length === 0) {
+                    airQualityDataDiv.innerHTML = `<p class="text-center text-danger">未找到符合條件的測站</p>`;
+                }
+            }
+
+            // 顯示資料表格
+            function displayData(records) {
+                if (records.length === 0) {
+                    airQualityDataDiv.innerHTML = `<p class="text-center text-danger">目前無資料</p>`;
+                    return;
+                }
+
+                let htmlContent = '<table class="table table-bordered table-striped">';
+                htmlContent += `
+            <thead class="table-primary text-center">
+                <tr>
+                    <th data-column="sitename" onclick="sortTable('sitename')">測站</th>
+                    <th data-column="monitordate" onclick="sortTable('monitordate')">監測時間</th>
+                    <th data-column="aqi" onclick="sortTable('aqi')">AQI</th>
+                    <th data-column="so2subindex" onclick="sortTable('so2subindex')">SO2子指數</th>
+                    <th data-column="cosubindex" onclick="sortTable('cosubindex')">CO子指數</th>
+                    <th data-column="o3subindex" onclick="sortTable('o3subindex')">O3子指數</th>
+                    <th data-column="pm10subindex" onclick="sortTable('pm10subindex')">PM10子指數</th>
+                    <th data-column="no2subindex" onclick="sortTable('no2subindex')">NO2子指數</th>
+                    <th data-column="o38subindex" onclick="sortTable('o38subindex')">O38子指數</th>
+                    <th data-column="pm25subindex" onclick="sortTable('pm25subindex')">PM2.5子指數</th>
+                </tr>
+            </thead>
+            <tbody>
+        `;
+
+                records.forEach(record => {
+                    htmlContent += `
+                <tr class="text-center">
+                    <td>${record.sitename}</td>
+                    <td>${record.monitordate}</td>
+                    <td>${record.aqi}</td>
+                    <td>${record.so2subindex}</td>
+                    <td>${record.cosubindex}</td>
+                    <td>${record.o3subindex || 'N/A'}</td>
+                    <td>${record.pm10subindex}</td>
+                    <td>${record.no2subindex}</td>
+                    <td>${record.o38subindex}</td>
+                    <td>${record.pm25subindex}</td>
+                </tr>
+            `;
+                });
+
+                htmlContent += '</tbody></table>';
+                airQualityDataDiv.innerHTML = htmlContent;
+            }
+
+            // 排序函數
+            window.sortTable = function (column) {
+                const direction = currentSort.column === column && currentSort.direction === 'asc' ? 'desc' : 'asc';
+                currentSort = { column, direction };
+
+                const sortedData = [...airQualityData].sort((a, b) => {
+                    let valueA = a[column];
+                    let valueB = b[column];
+
+                    // 如果是數字型資料，轉換為數字進行比較
+                    if (!isNaN(valueA) && !isNaN(valueB)) {
+                        valueA = Number(valueA);
+                        valueB = Number(valueB);
+                    }
+
+                    if (valueA < valueB) return direction === 'asc' ? -1 : 1;
+                    if (valueA > valueB) return direction === 'asc' ? 1 : -1;
+                    return 0;
+                });
+
+                // 顯示排序後的資料
+                displayData(sortedData);
+
+                // 更新排序箭頭樣式
+                updateSortingArrows(column, direction);
+            };
+
+            // 更新排序箭頭顯示
+            function updateSortingArrows(column, direction) {
+                const headers = document.querySelectorAll('th');
+
+                headers.forEach(header => {
+                    header.classList.remove('sorted', 'asc', 'desc'); // 清除舊的樣式
+                });
+
+                const activeHeader = Array.from(headers).find(header => header.dataset.column === column);
+                activeHeader.classList.add('sorted', direction); // 為點擊的欄位添加排序樣式
+            }
+        });
+
+    </script>
+</body>
+
+</html>
